@@ -1,0 +1,5 @@
+{
+  "name": "Daily Wisdom",
+  "description": "Upload your favorite thoughts and receive two randomly selected inspirations every day.",
+  "requestFramePermissions": []
+}

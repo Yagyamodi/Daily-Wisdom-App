@@ -1,0 +1,118 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required, email format)
+    //   - displayName: string (optional)
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: users/{userId}/thoughts
+    // Document ID: thoughtId
+    // Fields:
+    //   - content: string (required, max 2000 chars)
+    //   - source: string (optional, max 200 chars)
+    //   - sourceId: string (optional)
+    //   - createdAt: timestamp (required)
+    //   - userId: string (required, must match parent)
+    //
+    // Collection: users/{userId}/source_documents
+    // Document ID: docId
+    // Fields:
+    //   - name: string (required)
+    //   - type: string (required, enum: file, url)
+    //   - isActive: bool (required)
+    //   - createdAt: timestamp (required)
+    //   - userId: string (required)
+    //
+    // Collection: users/{userId}/daily_selections
+    // Document ID: date (YYYY-MM-DD)
+    // Fields:
+    //   - date: string (required, YYYY-MM-DD)
+    //   - thoughtIds: list (required, size 2)
+    //   - userId: string (required, must match parent)
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt']) &&
+             data.uid == request.auth.uid &&
+             isValidEmail(data.email) &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidThought(data, userId) {
+      return data.keys().hasAll(['content', 'userId', 'createdAt']) &&
+             data.content is string && data.content.size() > 0 && data.content.size() <= 2000 &&
+             data.userId == userId &&
+             data.createdAt is timestamp &&
+             (!('source' in data) || (data.source is string && data.source.size() <= 200)) &&
+             (!('sourceId' in data) || (data.sourceId is string));
+    }
+
+    function isValidSourceDocument(data, userId) {
+      return data.keys().hasAll(['name', 'type', 'isActive', 'userId', 'createdAt']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
+             data.type in ['file', 'url'] &&
+             data.isActive is bool &&
+             data.userId == userId &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidDailySelection(data, userId) {
+      return data.keys().hasAll(['date', 'thoughtIds', 'userId']) &&
+             data.date is string && data.date.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
+             data.thoughtIds is list && data.thoughtIds.size() <= 2 &&
+             data.userId == userId;
+    }
+
+    // Rules
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && 
+                      request.resource.data.createdAt == resource.data.createdAt;
+
+      match /thoughts/{thoughtId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidThought(request.resource.data, userId);
+        allow update: if isOwner(userId) && isValidThought(request.resource.data, userId) &&
+                        request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if isOwner(userId);
+      }
+
+      match /source_documents/{docId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidSourceDocument(request.resource.data, userId);
+        allow update: if isOwner(userId) && isValidSourceDocument(request.resource.data, userId) &&
+                        request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if isOwner(userId);
+      }
+
+      match /daily_selections/{date} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidDailySelection(request.resource.data, userId);
+        allow update: if isOwner(userId) && isValidDailySelection(request.resource.data, userId);
+      }
+    }
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Thought": {
+      "title": "Thought",
+      "description": "A single inspiring thought or quote",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "content": { "type": "string" },
+        "source": { "type": "string" },
+        "sourceId": { "type": "string", "description": "ID of the source document" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" }
+      },
+      "required": ["content", "userId", "createdAt"]
+    },
+    "SourceDocument": {
+      "title": "Source Document",
+      "description": "A document or URL that provides thoughts",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["file", "url"] },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" }
+      },
+      "required": ["name", "type", "isActive", "userId", "createdAt"]
+    },
+    "DailySelection": {
+      "title": "Daily Selection",
+      "description": "The two thoughts selected for a specific day",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "description": "YYYY-MM-DD" },
+        "thoughtIds": { "type": "array", "items": { "type": "string" } },
+        "userId": { "type": "string" }
+      },
+      "required": ["date", "thoughtIds", "userId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile document"
+    },
+    "/users/{userId}/thoughts/{thoughtId}": {
+      "schema": "Thought",
+      "description": "Collection of thoughts for a specific user"
+    },
+    "/users/{userId}/source_documents/{docId}": {
+      "schema": "SourceDocument",
+      "description": "Collection of source documents for a specific user"
+    },
+    "/users/{userId}/daily_selections/{date}": {
+      "schema": "DailySelection",
+      "description": "Daily selections for a specific user"
+    }
+  }
+}
